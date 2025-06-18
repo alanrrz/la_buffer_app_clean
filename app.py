@@ -33,6 +33,8 @@ def load_data():
     return schools, addresses
 
 schools, addresses = load_data()
+st.write("Sample schools coords:", schools[["label","lon","lat"]].head(5))
+st.write("Sample addresses coords:", addresses[["address","lon","lat"]].head(5))
 
 # ─── STEP 3: APP UI ───────────────────────────────────────────────────────
 st.title("📫 LAUSD Mailer (CSV Edition)")
