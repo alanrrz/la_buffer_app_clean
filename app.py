@@ -5,36 +5,17 @@ import pandas as pd
 import streamlit as st
 
 # ─── STEP 1: DOWNLOAD CSVs VIA PRESIGNED S3 URLs ─────────────────────────
-DATA_URLS = {
-    "schools.csv": (
-        "https://lausdbuffer.s3.us-east-2.amazonaws.com/schools.csv"
-        "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
-        "&X-Amz-Credential=ASIATTZC2PH6XJJQBH6P%2F20250618%2Fus-east-2%2Fs3%2Faws4_request"
-        "&X-Amz-Date=20250618T172553Z"
-        "&X-Amz-Expires=604800"
-        "&X-Amz-SignedHeaders=host"
-        "&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEKn%2F%2F%2F...<YOUR_FULL_TOKEN>...%3D"
-        "&X-Amz-Signature=01da5f4f07ce87443a9e905879a9d370ca8f85ed2fda8eade022867410caaa9e"
-    ),
-    "addresses.csv": (
-        "https://lausdbuffer.s3.us-east-2.amazonaws.com/addresses.csv"
-        "?X-Amz-Algorithm=AWS4-HMAC-SHA256"
-        "&X-Amz-Credential=ASIATTZC2PH6XJJQBH6P%2F20250618%2Fus-east-2%2Fs3%2Faws4_request"
-        "&X-Amz-Date=20250618T172554Z"
-        "&X-Amz-Expires=604800"
-        "&X-Amz-SignedHeaders=host"
-        "&X-Amz-Security-Token=IQoJb3JpZ2luX2VjEKn%2F%2F%2F...<YOUR_FULL_TOKEN>...%3D"
-        "&X-Amz-Signature=c1650512e4fb351f8fb24bb83ffa9711662f6a7ac5b1c623c58f5f4c35fa6a4b"
-    ),
-}
-
 for fname, url in DATA_URLS.items():
     if not os.path.exists(fname):
-        with st.spinner(f"Downloading {fname}…"):
-            resp = requests.get(url)
-            resp.raise_for_status()
-            with open(fname, "wb") as f:
-                f.write(resp.content)
+        st.write("🔗 Trying URL:", url)
+        resp = requests.get(url)
+        st.write("⏱️ Status code:", resp.status_code)
+        # show the first 200 chars of any error body
+        if resp.status_code != 200:
+            st.write("⚠️ Response body snippet:", resp.text[:200])
+        resp.raise_for_status()
+        with open(fname, "wb") as f:
+            f.write(resp.content)
 
 
 # ─── STEP 2: LOAD DATA ───────────────────────────────────────────────────
