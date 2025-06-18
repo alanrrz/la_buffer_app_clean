@@ -34,7 +34,7 @@ def load_data():
 
     # DEBUG: see what we actually have
     st.write("Addresses columns:", addresses.columns.tolist())
-    st.write("Addresses dtypes:", addresses.dtypes.to_dict()))
+    st.write("Addresses dtypes:", addresses.dtypes.to_dict())
 
     # --- Normalize schools ---
     # detect non-numeric column as label
