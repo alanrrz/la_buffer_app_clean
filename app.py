@@ -37,6 +37,14 @@ def load_data():
 
 schools, addresses = load_data()
 
+ schools, addresses = load_data()
+
++# DEBUG: inspect school columns
++st.write("🐞 Schools columns:", schools.columns.tolist())
++st.write(schools.head())
+
+ selected  = st.selectbox("Select a School", schools["label"].sort_values().unique())
+
 # ─── STEP 3: BUILD THE UI ────────────────────────────────────────────────
 st.title("📫 LAUSD Mailer (CSV Edition)")
 st.markdown("Pick a school and buffer radius to generate your mailing list.")
