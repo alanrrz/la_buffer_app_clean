@@ -36,8 +36,10 @@ for fname, fid in DRIVE_FILES.items():
 # ─── STEP 2: LOAD & STANDARDIZE ───────────────────────────────────────────
 @st.cache_data
 def load_data():
-    schools   = pd.read_csv("schools.csv")
-    addresses = pd.read_csv("addresses.csv")
+    # Read semicolon-delimited CSVs
+    schools   = pd.read_csv("schools.csv",   sep=";")  # now gives columns ['label','lon','lat']
+    addresses = pd.read_csv("addresses.csv", sep=";")  # now gives ['address','lon','lat']
+
 
     # DEBUG: see what we actually have
     st.write("Addresses columns:", addresses.columns.tolist())
