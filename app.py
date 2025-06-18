@@ -1,8 +1,9 @@
 import os, math, requests
 import pandas as pd
 import streamlit as st
+import numpy as np
 
-# ─── STEP 1: DOWNLOAD CSVs ─────────────────────────────────────────────────
+# ─── STEP 1: DOWNLOAD CSVs FROM GOOGLE DRIVE ─────────────────────────────
 def download_from_drive(file_id: str, dest: str):
     URL = "https://docs.google.com/uc?export=download"
     sess = requests.Session()
@@ -28,53 +29,70 @@ for fname, fid in DRIVE_FILES.items():
 # ─── STEP 2: LOAD & STANDARDIZE ───────────────────────────────────────────
 @st.cache_data
 def load_data():
-    # Read raw CSVs
     schools   = pd.read_csv("schools.csv")
     addresses = pd.read_csv("addresses.csv")
 
     # --- Normalize schools ---
-    # find all non-coordinate columns
-    sch_candidates = [c for c in schools.columns if c not in ("lon", "lat")]
-    # prefer existing label/labels
-    if "label" in schools.columns:
-        schools.rename(columns={"label": "label"}, inplace=True)
-    elif "labels" in schools.columns:
-        schools.rename(columns={"labels": "label"}, inplace=True)
+    # detect non-numeric column as label
+    sch_candidates = [c for c in schools.columns if not np.issubdtype(schools[c].dtype, np.number)]
+    if "labels" in sch_candidates:
+        schools = schools.rename(columns={"labels": "label"})
+    elif "label" in sch_candidates:
+        pass
     elif len(sch_candidates) == 1:
-        schools.rename(columns={sch_candidates[0]: "label"}, inplace=True)
+        schools = schools.rename(columns={sch_candidates[0]: "label"})
     else:
-        raise ValueError(f"Cannot find a single school name column, saw: {sch_candidates}")
+        raise ValueError(f"Cannot detect school name column, saw: {sch_candidates}")
+
+    # detect and rename numeric coords
+    num = [c for c in schools.columns if np.issubdtype(schools[c].dtype, np.number)]
+    # assume first is lon, second is lat if not named
+    if "xcoord" in num and "ycoord" in num:
+        schools = schools.rename(columns={"xcoord": "lon", "ycoord": "lat"})
+    elif "lon" in num and "lat" in num:
+        pass
+    elif len(num) >= 2:
+        schools = schools.rename(columns={num[0]: "lon", num[1]: "lat"})
+    else:
+        raise ValueError(f"Cannot detect school coords columns, saw: {num}")
 
     # --- Normalize addresses ---
-    addr_candidates = [c for c in addresses.columns if c not in ("lon", "lat")]
-    if "address" in addresses.columns:
-        addresses.rename(columns={"address": "address"}, inplace=True)
+    # detect non-numeric col as address
+    addr_candidates = [c for c in addresses.columns if not np.issubdtype(addresses[c].dtype, np.number)]
+    if "FullAddress_EnerGov" in addr_candidates:
+        addresses = addresses.rename(columns={"FullAddress_EnerGov": "address"})
+    elif "address" in addr_candidates:
+        pass
+    elif len(addr_candidates) == 1:
+        addresses = addresses.rename(columns={addr_candidates[0]: "address"})
     else:
-        # look for any column containing 'FullAddress'
-        fulls = [c for c in addr_candidates if "FullAddress" in c]
-        if fulls:
-            addresses.rename(columns={fulls[0]: "address"}, inplace=True)
-        elif len(addr_candidates) == 1:
-            addresses.rename(columns={addr_candidates[0]: "address"}, inplace=True)
-        else:
-            # fallback: pick first candidate
-            addresses.rename(columns={addr_candidates[0]: "address"}, inplace=True)
-    # drop any extra fields so we have exactly these three
-    addresses = addresses[["address", "lon", "lat"]]
+        # pick first as fallback
+        addresses = addresses.rename(columns={addr_candidates[0]: "address"})
+
+    # detect numeric coord columns for addresses
+    num2 = [c for c in addresses.columns if np.issubdtype(addresses[c].dtype, np.number)]
+    if "xcoord" in num2 and "ycoord" in num2:
+        addresses = addresses.rename(columns={"xcoord": "lon", "ycoord": "lat"})
+    elif "lon" in num2 and "lat" in num2:
+        pass
+    elif len(num2) >= 2:
+        addresses = addresses.rename(columns={num2[0]: "lon", num2[1]: "lat"})
+    else:
+        raise ValueError(f"Cannot detect address coords columns, saw: {num2}")
+
+    # now slice exactly
+    schools   = schools[["label","lon","lat"]]
+    addresses = addresses[["address","lon","lat"]]
 
     return schools, addresses
 
-# Load Data
 schools, addresses = load_data()
 
-# ─── STEP 3: UI ──────────────────────────────────────────────────────────
+# ─── STEP 3: APP UI ───────────────────────────────────────────────────────
 st.title("📫 LAUSD Mailer (CSV Edition)")
 st.markdown("Pick a school and buffer radius to generate your mailing list.")
 
-selected = st.selectbox(
-    "Select a School",
-    schools["label"].sort_values().unique()
-)
+selected = st.selectbox("Select a School", schools["label"].sort_values().unique())
 radius_mi = st.slider("Radius (miles)", 0.25, 2.0, 0.5, 0.25)
 
 # ─── STEP 4: DISTANCE CALCULATION ────────────────────────────────────────
@@ -88,37 +106,24 @@ def haversine(lon1, lat1, lon2, lat2):
          math.sin(dlon/2)**2)
     return 2 * R * math.asin(math.sqrt(a))
 
-# find coords of the chosen school
 row = schools[schools["label"] == selected].iloc[0]
 slon, slat = row["lon"], row["lat"]
-
-# compute distances as a plain list
 dist_list = [
     haversine(slon, slat, float(r["lon"]), float(r["lat"]))
     for _, r in addresses.iterrows()
 ]
 addresses["distance"] = dist_list
-
-# filter to within radius
 within = addresses[addresses["distance"] <= radius_mi]
 
 # ─── STEP 5: DISPLAY & EXPORT ────────────────────────────────────────────
-st.markdown(f"**Found {len(within)} addresses** within **{radius_mi} mi** of **{selected}**")
-
+st.markdown(f"**Found {len(within)} addresses** within **{radius_mi} miles** of **{selected}**")
 if not within.empty:
-    # map preview
-    map_df = within.rename(columns={"lat": "latitude", "lon": "longitude"})
-    st.map(map_df[["latitude", "longitude"]])
-
-    # prepare download
-    out = within.rename(columns={"lon": "longitude", "lat": "latitude"})
-    csv = out[["address", "longitude", "latitude", "distance"]].to_csv(index=False)
-
-    st.download_button(
-        "⬇️ Download Mailing List",
-        data=csv,
-        file_name=f"{selected.replace(' ','_')}_{radius_mi}mi.csv",
-        mime="text/csv"
-    )
+    map_df = within.rename(columns={"lat":"latitude","lon":"longitude"})
+    st.map(map_df[["latitude","longitude"]])
+    out = within.rename(columns={"lon":"longitude","lat":"latitude"})
+    csv = out[["address","longitude","latitude","distance"]].to_csv(index=False)
+    st.download_button("⬇️ Download Mailing List", data=csv,
+                       file_name=f"{selected.replace(' ','_')}_{radius_mi}mi.csv",
+                       mime="text/csv")
 else:
     st.info("No addresses found in that buffer.")
