@@ -32,6 +32,10 @@ def load_data():
     schools   = pd.read_csv("schools.csv")
     addresses = pd.read_csv("addresses.csv")
 
+    # DEBUG: see what we actually have
+    st.write("Addresses columns:", addresses.columns.tolist())
+    st.write("Addresses dtypes:", addresses.dtypes.to_dict()))
+
     # --- Normalize schools ---
     # detect non-numeric column as label
     sch_candidates = [c for c in schools.columns if not np.issubdtype(schools[c].dtype, np.number)]
