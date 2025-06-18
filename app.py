@@ -1,12 +1,14 @@
+import os
+import math
+import requests
+import pandas as pd
 import streamlit as st
 import traceback
 
 st.set_page_config(page_title="LAUSD Mailer (CSV Edition)")
 
 try:
-    import os, math, csv, requests, pandas as pd
-
-    # ─── STEP 1: DROPBOX DIRECT-DOWNLOAD LINKS ────────────────────────────
+    # ─── STEP 1: DROPBOX LINKS ─────────────────────────────────────────────
     DATA_URLS = {
         "schools.csv": (
             "https://www.dropbox.com/scl/fi/qt5wmh9raabpjjykuvslt/schools.csv"
@@ -18,54 +20,32 @@ try:
         ),
     }
 
-    # ─── STEP 1.5: DOWNLOAD IF MISSING ───────────────────────────────────
+    # download if missing
     for fname, url in DATA_URLS.items():
-        st.write(f"Checking for {fname}…")
         if not os.path.exists(fname):
-            st.write(f"🔄 Downloading {fname}…")
-            resp = requests.get(url)
-            st.write("Status code:", resp.status_code)
-            resp.raise_for_status()
-            with open(fname, "wb") as f:
-                f.write(resp.content)
-        else:
-            st.write(f"✅ {fname} already exists")
+            with st.spinner(f"Downloading {fname}…"):
+                resp = requests.get(url)
+                resp.raise_for_status()
+                with open(fname, "wb") as f:
+                    f.write(resp.content)
 
-    # ─── HELPER: AUTO-DETECT DELIMITER ────────────────────────────────────
-    def detect_delimiter(path: str) -> str:
-        sample = open(path, newline="").read(2048)
-        try:
-            dialect = csv.Sniffer().sniff(sample, delimiters=[",", ";", "\t"])
-            return dialect.delimiter
-        except csv.Error:
-            return ","
-
-    # ─── STEP 2: LOAD DATA ────────────────────────────────────────────────
+    # ─── STEP 2: LOAD DATA ─────────────────────────────────────────────────
     @st.cache_data
     def load_data():
-        sep_sch  = detect_delimiter("schools.csv")
-        sep_addr = detect_delimiter("addresses.csv")
+        # schools.csv is comma-delimited; addresses.csv is semicolon-delimited
+        schools = pd.read_csv("schools.csv", sep=",")
+        addresses = pd.read_csv("addresses.csv", sep=";")
 
-        st.write(f"Using delimiter '{sep_sch}' for schools.csv")
-        st.write(f"Using delimiter '{sep_addr}' for addresses.csv")
-
-        schools   = pd.read_csv("schools.csv",   sep=sep_sch)
-        addresses = pd.read_csv("addresses.csv", sep=sep_addr)
-
+        # normalize to lowercase
         schools.columns   = [c.strip().lower() for c in schools.columns]
         addresses.columns = [c.strip().lower() for c in addresses.columns]
 
-        st.write("🐞 schools.csv columns:", schools.columns.tolist())
-        st.write("🐞 addresses.csv columns:", addresses.columns.tolist())
-
-        required_s = {"label", "lon", "lat"}
-        required_a = {"address", "lon", "lat"}
-        if not required_s.issubset(schools.columns):
-            missing = required_s - set(schools.columns)
-            raise ValueError(f"schools.csv missing columns: {missing}")
-        if not required_a.issubset(addresses.columns):
-            missing = required_a - set(addresses.columns)
-            raise ValueError(f"addresses.csv missing columns: {missing}")
+        # ensure required columns exist
+        for f, req in [("schools.csv", {"label","lon","lat"}),
+                       ("addresses.csv", {"address","lon","lat"})]:
+            missing = req - set((schools if f=="schools.csv" else addresses).columns)
+            if missing:
+                raise ValueError(f"{f} missing columns: {missing}")
 
         return schools, addresses
 
@@ -83,10 +63,12 @@ try:
         R = 3959
         dlat = math.radians(lat2 - lat1)
         dlon = math.radians(lon2 - lon1)
-        a = (math.sin(dlat/2)**2
-             + math.cos(math.radians(lat1))
-             * math.cos(math.radians(lat2))
-             * math.sin(dlon/2)**2)
+        a = (
+            math.sin(dlat/2)**2
+            + math.cos(math.radians(lat1))
+            * math.cos(math.radians(lat2))
+            * math.sin(dlon/2)**2
+        )
         return 2 * R * math.asin(math.sqrt(a))
 
     row = schools[schools["label"] == selected].iloc[0]
@@ -108,21 +90,20 @@ try:
 
         out_csv = (
             within
-            .rename(columns={"lon": "longitude", "lat": "latitude"})
-            [["address", "longitude", "latitude", "distance"]]
+            .rename(columns={"lon":"longitude","lat":"latitude"})
+            [["address","longitude","latitude","distance"]]
             .to_csv(index=False)
         )
-
         st.download_button(
             "⬇️ Download Mailing List",
             data=out_csv,
             file_name=f"{selected.replace(' ', '_')}_{radius_mi}mi.csv",
-            mime="text/csv"
+            mime="text/csv",
         )
     else:
         st.info("No addresses found in that buffer.")
 
-except Exception as e:
+except Exception:
     st.error("❌ An error occurred:")
     st.text(traceback.format_exc())
     st.stop()
