@@ -4,13 +4,23 @@ import streamlit as st
 import numpy as np
 
 # ─── STEP 1: DOWNLOAD CSVs FROM GOOGLE DRIVE ─────────────────────────────
+import re
+
 def download_from_drive(file_id: str, dest: str):
     URL = "https://docs.google.com/uc?export=download"
     sess = requests.Session()
+
+    # 1) Initial request
     res = sess.get(URL, params={"id": file_id}, stream=True)
-    token = next((v for k, v in res.cookies.items() if k.startswith("download_warning")), None)
-    if token:
-        res = sess.get(URL, params={"id": file_id, "confirm": token}, stream=True)
+    text = res.text
+
+    # 2) Look for confirm token in HTML
+    m = re.search(r"confirm=([0-9A-Za-z_-]+)", text)
+    if m:
+        token = m.group(1)
+        res = sess.get(URL, params={"id": file_id, "export": "download", "confirm": token}, stream=True)
+
+    # 3) Stream to file
     with open(dest, "wb") as f:
         for chunk in res.iter_content(32768):
             if chunk:
