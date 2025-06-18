@@ -46,24 +46,18 @@ selected = st.selectbox("Select a School", names)
 radius_mi = st.slider("Radius (miles)", 0.25, 2.0, 0.5, 0.25)
 
 # ─── STEP 4: DISTANCE CALCULATION ────────────────────────────────────────
-def haversine(lon1, lat1, lon2, lat2):
-    R = 3959
-    dlat = math.radians(lat2 - lat1)
-    dlon = math.radians(lon2 - lon1)
-    a = (math.sin(dlat/2)**2 +
-         math.cos(math.radians(lat1)) *
-         math.cos(math.radians(lat2)) *
-         math.sin(dlon/2)**2)
-    return 2 * R * math.asin(math.sqrt(a))
-
 # find selected school coords
-row   = schools[schools["label"] == selected].iloc[0]
+row       = schools[schools["label"] == selected].iloc[0]
 slon, slat = row["lon"], row["lat"]
 
-# compute & filter
-addresses["distance"] = addresses.apply(
-    lambda r: haversine(slon, slat, r["lon"], r["lat"]), axis=1
-)
+# build a plain Python list of distances
+dist_list = [
+    haversine(slon, slat, float(r["lon"]), float(r["lat"]))
+    for _, r in addresses.iterrows()
+]
+
+# assign the list and filter
+addresses["distance"] = dist_list
 within = addresses[addresses["distance"] <= radius_mi]
 
 # ─── STEP 5: DISPLAY & EXPORT ────────────────────────────────────────────
