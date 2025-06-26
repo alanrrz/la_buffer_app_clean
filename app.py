@@ -5,7 +5,6 @@ import math
 import folium
 from streamlit_folium import st_folium
 
-# Map SHORTNAME values to region address files (update links if you change file locations)
 REGION_URLS = {
     "CENTRAL": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/C.csv",
     "EAST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/E.csv",
@@ -36,6 +35,11 @@ st.title("School Community Address Finder")
 st.caption("Find addresses near your selected school site for stakeholder notification and community engagement.")
 
 schools = load_schools()
+schools.columns = schools.columns.str.strip()  # Ensures no trailing spaces in column names
+
+# Optionally, check your column names for debugging:
+# st.write("School columns:", schools.columns.tolist())
+
 site_list = schools["LABEL"].sort_values().tolist()
 site_selected = st.selectbox("Select Campus", site_list)
 
@@ -44,7 +48,6 @@ if site_selected:
     school_region = selected_school_row["SHORTNAME"]
     slon, slat = selected_school_row["LON"], selected_school_row["LAT"]
 
-    # Defensive: handle missing region
     if school_region not in REGION_URLS:
         st.error(f"No addresses file found for region: {school_region}")
     else:
