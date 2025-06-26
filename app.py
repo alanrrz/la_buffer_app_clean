@@ -5,6 +5,7 @@ import math
 import folium
 from streamlit_folium import st_folium
 
+# Map SHORTNAME values to region address files (update links if you change file locations)
 REGION_URLS = {
     "CENTRAL": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/C.csv",
     "EAST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/E.csv",
@@ -31,25 +32,22 @@ def haversine(lon1, lat1, lon2, lat2):
     )
     return 2 * R * math.asin(math.sqrt(a))
 
-# App title and caption
 st.title("School Community Address Finder")
 st.caption("Find addresses near your selected school site for stakeholder notification and community engagement.")
 
-# Load schools once at app start
 schools = load_schools()
-site_list = schools["label"].sort_values().tolist()
+site_list = schools["LABEL"].sort_values().tolist()
 site_selected = st.selectbox("Select Campus", site_list)
 
 if site_selected:
-    # Find the school row and region
-    selected_school_row = schools[schools["label"] == site_selected].iloc[0]
+    selected_school_row = schools[schools["LABEL"] == site_selected].iloc[0]
     school_region = selected_school_row["SHORTNAME"]
+    slon, slat = selected_school_row["LON"], selected_school_row["LAT"]
 
     # Defensive: handle missing region
     if school_region not in REGION_URLS:
         st.error(f"No addresses file found for region: {school_region}")
     else:
-        # Only load the addresses for the selected region now!
         @st.cache_data
         def load_addresses(url):
             return pd.read_csv(url)
@@ -74,25 +72,22 @@ if site_selected:
                 st.session_state["show_map"] = False
 
         if st.session_state["show_map"]:
-            slon, slat = selected_school_row["lon"], selected_school_row["lat"]
-            radius = radius_selected
-
             addresses["distance"] = addresses.apply(
-                lambda r: haversine(slon, slat, r["lon"], r["lat"]), axis=1
+                lambda r: haversine(slon, slat, r["LON"], r["LAT"]), axis=1
             )
-            within = addresses[addresses["distance"] <= radius]
-            csv = within[["address","lon","lat","distance"]].to_csv(index=False)
+            within = addresses[addresses["distance"] <= radius_selected]
+            csv = within[["address","LON","LAT","distance"]].to_csv(index=False)
 
             st.download_button(
-                label=f"Download Nearby Addresses ({site_selected}_{radius}mi.csv)",
+                label=f"Download Nearby Addresses ({site_selected}_{radius_selected}mi.csv)",
                 data=csv,
-                file_name=f"{site_selected.replace(' ', '_')}_{radius}mi.csv",
+                file_name=f"{site_selected.replace(' ', '_')}_{radius_selected}mi.csv",
                 mime='text/csv'
             )
 
             fmap = folium.Map(location=[slat, slon], zoom_start=15)
             folium.Marker([slat, slon], tooltip=site_selected, icon=folium.Icon(color="blue")).add_to(fmap)
-            folium.Circle([slat, slon], radius=radius*1609.34, color='red', fill=True, fill_opacity=0.1).add_to(fmap)
+            folium.Circle([slat, slon], radius=radius_selected*1609.34, color='red', fill=True, fill_opacity=0.1).add_to(fmap)
 
             st.write(f"**Preview:** The red area shows all addresses included in your download. Adjust your campus or radius as needed before downloading.")
             st_folium(fmap, width=700, height=500)
