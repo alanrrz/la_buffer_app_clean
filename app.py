@@ -5,7 +5,7 @@ import math
 import folium
 from streamlit_folium import st_folium
 
-# Mapping: region names in ALL CAPS for .upper() match
+# Region file mapping (ALL CAPS for .upper() match)
 REGION_URLS = {
     "CENTRAL": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/C.csv",
     "EAST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/E.csv",
@@ -15,7 +15,7 @@ REGION_URLS = {
     "WEST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/W.csv"
 }
 
-# Use your working schools.csv RAW link!
+# The actual RAW GitHub link for your working schools.csv
 SCHOOLS_URL = "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/ab73deb13c0a02107f43001161ab70891630a9c7/schools.csv"
 
 @st.cache_data
@@ -45,7 +45,6 @@ site_selected = st.selectbox("Select Campus", site_list)
 
 if site_selected:
     selected_school_row = schools[schools["LABEL"] == site_selected].iloc[0]
-    # Make sure region matches the mapping (ALL CAPS)
     school_region = selected_school_row["SHORTNAME"].upper()
     slon, slat = selected_school_row["LON"], selected_school_row["LAT"]
 
@@ -56,6 +55,9 @@ if site_selected:
         def load_addresses(url):
             return pd.read_csv(url)
         addresses = load_addresses(REGION_URLS[school_region])
+
+        # Optional: clean up addresses columns in case of hidden spaces
+        addresses.columns = addresses.columns.str.strip()
 
         radius_selected = st.select_slider(
             "Select Radius (How far from the school site?)",
@@ -79,7 +81,8 @@ if site_selected:
                 lambda r: haversine(slon, slat, r["LON"], r["LAT"]), axis=1
             )
             within = addresses[addresses["distance"] <= radius_selected]
-            csv = within[["address","LON","LAT","distance"]].to_csv(index=False)
+            # Export FullAddress (the complete address), LON, LAT, and distance
+            csv = within[["FullAddress", "LON", "LAT", "distance"]].to_csv(index=False)
 
             st.download_button(
                 label=f"Download Nearby Addresses ({site_selected}_{radius_selected}mi.csv)",
