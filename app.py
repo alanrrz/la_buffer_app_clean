@@ -5,6 +5,7 @@ import math
 import folium
 from streamlit_folium import st_folium
 
+# Mapping: region names in ALL CAPS for .upper() match
 REGION_URLS = {
     "CENTRAL": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/C.csv",
     "EAST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/E.csv",
@@ -13,14 +14,16 @@ REGION_URLS = {
     "SOUTH": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/S.csv",
     "WEST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/W.csv"
 }
-SCHOOLS_URL = "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b5a97acae47e218f836aba96d0dac1c8e3cacfda/school.csv"
+
+# Use your working schools.csv RAW link!
+SCHOOLS_URL = "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/ab73deb13c0a02107f43001161ab70891630a9c7/schools.csv"
 
 @st.cache_data
 def load_schools():
     return pd.read_csv(SCHOOLS_URL)
 
 def haversine(lon1, lat1, lon2, lat2):
-    R = 3959  # miles
+    R = 3959  # miles (Earth radius)
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = (
@@ -35,17 +38,15 @@ st.title("School Community Address Finder")
 st.caption("Find addresses near your selected school site for stakeholder notification and community engagement.")
 
 schools = load_schools()
-schools.columns = schools.columns.str.strip()  # Ensures no trailing spaces in column names
-
-# Optionally, check your column names for debugging:
-# st.write("School columns:", schools.columns.tolist())
+schools.columns = schools.columns.str.strip()  # clean up possible whitespace
 
 site_list = schools["LABEL"].sort_values().tolist()
 site_selected = st.selectbox("Select Campus", site_list)
 
 if site_selected:
     selected_school_row = schools[schools["LABEL"] == site_selected].iloc[0]
-    school_region = selected_school_row["SHORTNAME"]
+    # Make sure region matches the mapping (ALL CAPS)
+    school_region = selected_school_row["SHORTNAME"].upper()
     slon, slat = selected_school_row["LON"], selected_school_row["LAT"]
 
     if school_region not in REGION_URLS:
@@ -54,7 +55,6 @@ if site_selected:
         @st.cache_data
         def load_addresses(url):
             return pd.read_csv(url)
-
         addresses = load_addresses(REGION_URLS[school_region])
 
         radius_selected = st.select_slider(
