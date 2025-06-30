@@ -12,7 +12,7 @@ REGION_URLS = {
     "NORTHEAST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/NE.csv",
     "NORTHWEST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/refs/heads/main/NW.csv",
     "SOUTH": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/b0d5501614753fa530532c2f55a48eea4bed7607/S.csv",
-    "WEST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/d6d9a1384a8a677bdf135b49ddd6540cdfc02cbc/W.csv"  # Updated link
+    "WEST": "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/d6d9a1384a8a677bdf135b49ddd6540cdfc02cbc/W.csv"
 }
 SCHOOLS_URL = "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/ab73deb13c0a02107f43001161ab70891630a9c7/schools.csv"
 
@@ -52,6 +52,7 @@ if site_selected:
         @st.cache_data
         def load_addresses(url):
             return pd.read_csv(url)
+
         addresses = load_addresses(REGION_URLS[school_region])
         addresses.columns = addresses.columns.str.strip()
         addresses["LAT"] = pd.to_numeric(addresses["LAT"], errors="coerce")
@@ -59,7 +60,7 @@ if site_selected:
 
         radius_selected = st.select_slider(
             "Select Radius (How far from the school site?)",
-            options = [round(x, 2) for x in np.arange(0.1, 3.01, 0.01)],
+            options=[round(x, 2) for x in np.arange(0.1, 3.01, 0.01)],
             value=0.5
         )
 
@@ -92,9 +93,9 @@ if site_selected:
 
             fmap = folium.Map(location=[slat, slon], zoom_start=15)
             folium.Marker([slat, slon], tooltip=site_selected, icon=folium.Icon(color="blue")).add_to(fmap)
-            folium.Circle([slat, slon], radius=radius_selected*1609.34, color='red', fill=True, fill_opacity=0.1).add_to(fmap)
+            folium.Circle([slat, slon], radius=radius_selected * 1609.34, color='red', fill=True, fill_opacity=0.1).add_to(fmap)
 
-            st.write(f"**Preview:** The red area shows all addresses included in your download. Adjust your campus or radius as needed before downloading.")
+            st.write("**Preview:** The red area shows all addresses included in your download. Adjust your campus or radius as needed before downloading.")
             st_folium(fmap, width=700, height=500)
         else:
             st.info("Select campus and radius, then click 'Preview Map'.")
