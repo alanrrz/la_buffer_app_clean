@@ -6,7 +6,7 @@ import folium
 from streamlit_folium import st_folium
 
 # 📄 Your schools file
-SCHOOLS_URL = "https://github.com/alanrrz/la_buffer_app_clean/blob/main/zipcodes/schools.csv"
+SCHOOLS_URL = "https://raw.githubusercontent.com/alanrrz/la_buffer_app_clean/main/zipcodes/schools.csv"
 
 # 🔷 ZipCode → CSV URL mapping
 ZIPCODE_URLS = {
