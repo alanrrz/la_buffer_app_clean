@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
-import re
+import usaddress
 
-st.title("🏠 Address Parser")
+st.title("🏠 US Address Parser")
 
 st.write("Paste your addresses below (one per line):")
 
@@ -11,26 +11,32 @@ addresses = st.text_area("Addresses", height=200)
 if st.button("Parse Addresses"):
     rows = []
     for line in addresses.splitlines():
-        # crude regex for US address: number, street, city, zip
-        # you can adjust this pattern depending on your data
-        m = re.match(r"(\d+)\s+(.*?)\s+([A-Za-z\s]+)\s+(\d{5})$", line.strip())
-        if m:
-            house_num, street, city, zipcode = m.groups()
+        line = line.strip()
+        try:
+            parsed, _ = usaddress.tag(line)
             rows.append({
-                "House Number": house_num,
-                "Street": street,
-                "City": city,
-                "ZIP": zipcode
+                "House Number": parsed.get("AddressNumber", ""),
+                "Street": " ".join([
+                    parsed.get("StreetNamePreDirectional", ""),
+                    parsed.get("StreetName", ""),
+                    parsed.get("StreetNamePostType", ""),
+                    parsed.get("StreetNamePostDirectional", ""),
+                ]).strip(),
+                "City": parsed.get("PlaceName", ""),
+                "State": parsed.get("StateName", ""),
+                "ZIP": parsed.get("ZipCode", ""),
+                "Original": line
             })
-        else:
+        except usaddress.RepeatedLabelError as e:
             rows.append({
                 "House Number": "",
                 "Street": "",
                 "City": "",
+                "State": "",
                 "ZIP": "",
                 "Original": line
             })
-    
+
     df = pd.DataFrame(rows)
     st.write("### 📝 Parsed Addresses")
     st.dataframe(df)
