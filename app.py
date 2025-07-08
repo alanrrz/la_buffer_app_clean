@@ -366,7 +366,7 @@ def load_schools():
     df = pd.read_csv(SCHOOLS_URL)
     df.columns = df.columns.str.strip()
     df["ZIPCODE"] = (
-        df["ZIPCODE"]
+        df["ZIP"]
         .astype(str)
         .str.replace(".0", "", regex=False)
         .str.zfill(5)
