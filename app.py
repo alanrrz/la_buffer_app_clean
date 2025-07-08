@@ -377,8 +377,8 @@ def load_schools():
 def load_addresses(url):
     df = pd.read_csv(url)
     df.columns = df.columns.str.strip()
-    df["LAT"] = pd.to_numeric(df["LAT"], errors="coerce")
-    df["LON"] = pd.to_numeric(df["LON"], errors="coerce")
+    df["LAT"] = pd.to_numeric(df["lat"], errors="coerce")
+    df["LON"] = pd.to_numeric(df["lon"], errors="coerce")
     return df
 
 def haversine(lon1, lat1, lon2, lat2):
